@@ -1,21 +1,34 @@
 import cv2
+import numpy as np
 
-face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
-webcam = cv2.VideoCapture(0)
+modelFile = "res10_300x300_ssd_iter_140000.caffemodel"
+configFile = "deploy.prototxt"
+
+net = cv2.dnn.readNetFromCaffe(configFile, modelFile)
+
+cap = cv2.VideoCapture(0)
 
 while True:
-    _, img = webcam.read()
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, 1.3, 5)  # Adjusted parameters for better detection
-    
-    for (x, y, w, h) in faces:
-        cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 3)
-    
-    cv2.imshow("face detection", img)
-    key = cv2.waitKey(10)
-    if key == 27:
+    ret, frame = cap.read()
+    h, w = frame.shape[:2]
+
+    blob = cv2.dnn.blobFromImage(frame, 1.0, (300,300), (104,177,123))
+    net.setInput(blob)
+    detections = net.forward()
+
+    for i in range(detections.shape[2]):
+        confidence = detections[0,0,i,2]
+
+        if confidence > 0.6:
+            box = detections[0,0,i,3:7] * np.array([w,h,w,h])
+            (x,y,x2,y2) = box.astype("int")
+
+            cv2.rectangle(frame,(x,y),(x2,y2),(0,255,0),2)
+
+    cv2.imshow("Face Detection", frame)
+
+    if cv2.waitKey(1) == 27:
         break
 
-webcam.release()
+cap.release()
 cv2.destroyAllWindows()
-# python face_detection.py
